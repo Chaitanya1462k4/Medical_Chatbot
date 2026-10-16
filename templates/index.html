@@ -1,0 +1,185 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical AI Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+</head>
+
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">✚</div>
+                <div>
+                    <h2>MediBot</h2>
+                    <p>AI Health Assistant</p>
+                </div>
+            </div>
+
+            <button class="new-chat" onclick="clearChat()">
+                + New conversation
+            </button>
+
+            <div class="sidebar-info">
+                <span class="status-dot"></span>
+                Medical RAG Assistant
+            </div>
+
+            <div class="sidebar-footer">
+                For educational purposes only.
+                Consult a qualified healthcare professional for medical advice.
+            </div>
+        </aside>
+
+        <main class="chat-area">
+            <header class="topbar">
+                <div>
+                    <h3>Medical Assistant</h3>
+                    <p>Ask questions about your health</p>
+                </div>
+                <span class="online-badge">● Online</span>
+            </header>
+
+            <section id="chat-messages" class="chat-messages">
+                <div class="welcome">
+                    <div class="welcome-icon">✚</div>
+                    <h1>How can I help you today?</h1>
+                    <p>
+                        Ask a medical question to get an answer
+                        based on the information in my knowledge base.
+                    </p>
+
+                    <div class="suggestions">
+                        <button onclick="useSuggestion(this)">
+                            What are the symptoms of diabetes?
+                        </button>
+                        <button onclick="useSuggestion(this)">
+                            What causes high blood pressure?
+                        </button>
+                        <button onclick="useSuggestion(this)">
+                            How can I prevent dehydration?
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <div class="composer-wrapper">
+                <form id="chat-form" class="composer">
+                    <textarea
+                        id="message-input"
+                        placeholder="Ask your medical question..."
+                        rows="1"
+                        required
+                    ></textarea>
+                    <button type="submit" id="send-button" aria-label="Send message">
+                        ↑
+                    </button>
+                </form>
+
+                <p class="disclaimer">
+                    AI-generated information may be inaccurate. This chatbot
+                    does not diagnose medical conditions.
+                </p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const form = document.getElementById("chat-form");
+        const input = document.getElementById("message-input");
+        const messages = document.getElementById("chat-messages");
+        const sendButton = document.getElementById("send-button");
+
+        function addMessage(text, role) {
+            const welcome = messages.querySelector(".welcome");
+            if (welcome) welcome.remove();
+
+            const row = document.createElement("div");
+            row.className = `message-row ${role}`;
+
+            const bubble = document.createElement("div");
+            bubble.className = "message-bubble";
+            bubble.textContent = text;
+
+            row.appendChild(bubble);
+            messages.appendChild(row);
+            messages.scrollTop = messages.scrollHeight;
+
+            return row;
+        }
+
+        function useSuggestion(button) {
+            input.value = button.textContent.trim();
+            input.focus();
+        }
+
+        function clearChat() {
+            messages.innerHTML = `
+                <div class="welcome">
+                    <div class="welcome-icon">✚</div>
+                    <h1>How can I help you today?</h1>
+                    <p>Ask a medical question to get started.</p>
+                </div>`;
+            input.value = "";
+        }
+
+        input.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                form.requestSubmit();
+            }
+        });
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const message = input.value.trim();
+            if (!message) return;
+
+            addMessage(message, "user");
+            input.value = "";
+            input.style.height = "auto";
+            sendButton.disabled = true;
+
+            const loading = addMessage("Thinking...", "bot loading");
+
+            try {
+                const response = await fetch("/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || "Request failed.");
+                }
+
+                loading.querySelector(".message-bubble").textContent =
+                    data.answer;
+                loading.classList.remove("loading");
+
+            } catch (error) {
+                loading.querySelector(".message-bubble").textContent =
+                    error.message || "Unable to connect. Please try again.";
+                loading.classList.remove("loading");
+            } finally {
+                sendButton.disabled = false;
+                input.focus();
+                messages.scrollTop = messages.scrollHeight;
+            }
+        });
+
+        input.addEventListener("input", () => {
+            input.style.height = "auto";
+            input.style.height = Math.min(input.scrollHeight, 140) + "px";
+        });
+    </script>
+</body>
+</html>
